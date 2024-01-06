@@ -1,7 +1,6 @@
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
-use leptos_use::{core::ConnectionReadyState, use_document};
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -31,7 +30,8 @@ pub fn App() -> impl IntoView {
 /// Renders the home page of your application.
 #[component]
 fn HomePage() -> impl IntoView {
-    use leptos_use::{UseWebsocketReturn, use_websocket};
+    use leptos_use::{UseWebsocketReturn, use_websocket, core::ConnectionReadyState};
+
     use cfg_if::cfg_if;
 
     let mut hostname = "".to_string();
