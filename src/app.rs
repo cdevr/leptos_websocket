@@ -1,7 +1,7 @@
 use leptos::*;
 use leptos_meta::*;
 use leptos_router::*;
-use leptos_use::core::ConnectionReadyState;
+use leptos_use::{core::ConnectionReadyState, use_document};
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -31,7 +31,20 @@ pub fn App() -> impl IntoView {
 /// Renders the home page of your application.
 #[component]
 fn HomePage() -> impl IntoView {
-    use leptos_use::*;
+    use leptos_use::{UseWebsocketReturn, use_websocket};
+    use cfg_if::cfg_if;
+
+    let mut hostname = "".to_string();
+    cfg_if! {
+        if #[cfg(feature="ssr")] {
+            hostname = "ssr".to_string();
+        } else {
+            hostname = document().location().unwrap().host().unwrap();
+        }
+    }
+    
+    let protocol = if hostname.starts_with("localhost") { "ws" } else { "wss" };
+    let url = format!("{}://{}/ws/", protocol, hostname);
 
     let UseWebsocketReturn {
         ready_state,
@@ -42,40 +55,52 @@ fn HomePage() -> impl IntoView {
         open,
         close,
         ..
-    } = use_websocket("wss://localhost:3000/ws/");
+    } = use_websocket(&url);
 
     let (log, set_log) = create_signal("log\n---\n".to_string());
 
+    let l = move |s| {
+        set_log(format!("{}{}\n", log(), s));
+    };
+    l(format!("hostname found: {}", hostname));
+    l(format!("connecting to {}", url));
+
     let send_message = move |_| {
-        set_log(log() + "send_message()\n");
+        l("send_message".to_string());
         send("Hello, world!");
     };
 
     let send_byte_message = move |_| {
-        set_log(log() + "send_byte_message()\n");
+        l("send_byte_message()".to_string());
         send_bytes(b"Hello, world!\r\n".to_vec());
     };
 
     let status = move || ready_state().to_string();
+
+    // message.with(|msg| {
+    //     l(format!("received message: {:?}\n", msg.clone().unwrap_or_default()));
+    // });
+    // message_bytes.with(|msg| {
+    //     l(format!("received bytes message: {:?}\n", msg.clone().unwrap_or_default()));
+    // });
     ready_state.with(|status| {
-        set_log(log() + format!("ready state changed to: {:?}\n", status).as_str())
+        l(format!("ready state changed to: {:?}\n", status));
     });
 
     let connected = move || ready_state() == ConnectionReadyState::Open;
 
     let open_connection = move|_| {
-        set_log(log() + "open\n");
+        l("open".to_string());
         open();
     };
 
     let close_connection = move |_| {
-        set_log(log() + "close\n");
+        l("close".to_string());
         close();
     };
 
     view! {
         <div>
-            <pre>{log}</pre>
             <p>"status: " {status}</p>
 
             <button on:click=send_message disabled=move || !connected()>"Send"</button>
@@ -85,8 +110,10 @@ fn HomePage() -> impl IntoView {
 
             <p>"Receive message: " {move || format!("{:?}", message())}</p>
             <p>"Receive byte message: " {move || format!("{:?}", message_bytes())}</p>
+
+            <pre>{log}</pre>
         </div>
-    }
+    }.into_view()
 }
 
 /// 404 - Not Found
