@@ -75,19 +75,29 @@ fn HomePage() -> impl IntoView {
         send_bytes(b"Hello, world!\r\n".to_vec());
     };
 
-    let status = move || ready_state().to_string();
+    let status = Signal::derive(move || ready_state().to_string());
 
-    // message.with(|msg| {
-    //     l(format!("received message: {:?}\n", msg.clone().unwrap_or_default()));
-    // });
-    // message_bytes.with(|msg| {
-    //     l(format!("received bytes message: {:?}\n", msg.clone().unwrap_or_default()));
-    // });
-    ready_state.with(|status| {
-        l(format!("ready state changed to: {:?}\n", status));
+    message.with(move |msg| {
+        l(format!("received message: {:?}\n", msg));
     });
 
-    let connected = move || ready_state() == ConnectionReadyState::Open;
+    watch(
+        move || message(),
+        move |message, _, _| { l(format!("message: {:?}\n", message.clone().unwrap_or_default())); },
+        false,
+    );
+    watch(
+        move || message_bytes(),
+        move |message_bytes, _, _| { l(format!("message: {:?}\n", message_bytes.clone().unwrap_or_default())); },
+        false,
+    );
+    watch(
+        move || ready_state(),
+        move |ready_state, prev_ready_state, _| { l(format!("ready state changed from: {:?} to: {:?}\n", prev_ready_state, ready_state)); },
+        false,
+    );
+
+    let connected = Signal::derive(move || ready_state() == ConnectionReadyState::Open);
 
     let open_connection = move|_| {
         l("open".to_string());
